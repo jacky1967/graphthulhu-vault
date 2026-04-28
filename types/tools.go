@@ -217,6 +217,15 @@ type JournalSearchInput struct {
 	To    string `json:"to,omitempty" jsonschema:"End date filter (YYYY-MM-DD)"`
 }
 
+// --- Append-to-section tool input (Obsidian-only) ---
+
+type AppendToSectionInput struct {
+	Page          string `json:"page" jsonschema:"Page name"`
+	Content       string `json:"content" jsonschema:"Content to append as a single block (may be multiline). A UUID will be embedded as for any block."`
+	TargetHeading string `json:"targetHeading" jsonschema:"Heading text to append under (without leading #s). Exact match after whitespace strip, case-sensitive. The first matching heading wins. Returns an error if the heading does not exist (the heading is never created)."`
+	SkipIfPresent bool   `json:"skipIfPresent,omitempty" jsonschema:"If true and the trimmed content already appears as a paragraph block in the section, skip the append (no-op). Default: false."`
+}
+
 // --- Attachment tool inputs (Obsidian-only) ---
 
 type UploadAttachmentInput struct {

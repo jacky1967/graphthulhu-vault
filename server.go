@@ -317,6 +317,13 @@ func newServer(b backend.Backend, readOnly bool) *mcp.Server {
 			Name:        "list_attachments",
 			Description: "List non-.md files (binaries, attachments) in a folder relative to vault root. Set recursive=true to walk sub-folders. Returns entries with path, size, and modification time.",
 		}, attachments.List)
+
+		// --- append_to_section (Obsidian-specific) ---
+		appendSection := tools.NewAppendSection(vaultClient)
+		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "append_to_section",
+			Description: "Append content as a new block under a specific heading on an existing page, with optional idempotency. The heading must already exist (it is never created). With skipIfPresent=true, the call is a no-op when the trimmed content already appears as a paragraph block in the section — useful when the same logical entry may be written multiple times in one session.",
+		}, appendSection.Run)
 	}
 
 	return srv
