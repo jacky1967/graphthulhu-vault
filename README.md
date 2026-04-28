@@ -1,5 +1,7 @@
 # graphthulhu
 
+> **Fork notice** — this is `jacky1967/graphthulhu-vault`, a fork of [skridlevsky/graphthulhu](https://github.com/skridlevsky/graphthulhu) maintained as the single-writer MCP for the Hermes Agent project on top of Obsidian. Tracks upstream; adds an attachments primitive (`upload_attachment`, `delete_attachment`, `list_attachments`) and a heading-aware anti-duplication primitive so that all writes to the vault — including binaries (PDFs, audio, images) — go through MCP. See `projet-agents-hermes-sur-second-cerveau` (Beads s5c) for the roadmap and PR upstream is intended once the attachments primitives stabilize.
+
 MCP server that gives AI full access to your knowledge graph. Supports **Logseq** and **Obsidian** — both with full read-write support. Navigate pages, search blocks, analyze link structure, track decisions, manage flashcards, and write content — all through the [Model Context Protocol](https://modelcontextprotocol.io).
 
 Built in Go with the [official MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk).
