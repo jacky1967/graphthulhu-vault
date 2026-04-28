@@ -217,6 +217,17 @@ type JournalSearchInput struct {
 	To    string `json:"to,omitempty" jsonschema:"End date filter (YYYY-MM-DD)"`
 }
 
+// --- Raw page tool inputs (Obsidian-only) ---
+
+type WriteRawPageInput struct {
+	Name    string `json:"name" jsonschema:"Page name (without .md). Parent directories are auto-created."`
+	Content string `json:"content" jsonschema:"Full markdown content to write, verbatim. Replaces the page entirely if it already exists (upsert). Use this when you need to write structured markdown (frontmatter + sections + lists) that cannot be expressed as a list of plain blocks."`
+}
+
+type ReadRawPageInput struct {
+	Name string `json:"name" jsonschema:"Page name (without .md)."`
+}
+
 // --- Append-to-section tool input (Obsidian-only) ---
 
 type AppendToSectionInput struct {

@@ -324,6 +324,17 @@ func newServer(b backend.Backend, readOnly bool) *mcp.Server {
 			Name:        "append_to_section",
 			Description: "Append content as a new block under a specific heading on an existing page, with optional idempotency. The heading must already exist (it is never created). With skipIfPresent=true, the call is a no-op when the trimmed content already appears as a paragraph block in the section — useful when the same logical entry may be written multiple times in one session.",
 		}, appendSection.Run)
+
+		// --- raw page primitives (Obsidian-specific) ---
+		rawPage := tools.NewRawPage(vaultClient)
+		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "write_raw_page",
+			Description: "Write a page with raw markdown content (frontmatter + sections + lists, etc). Upsert: creates the page if missing, replaces it atomically if it exists. Use this when the structure cannot be expressed as a list of plain blocks (typical: scout/dispatcher reports). The name must not end in .md.",
+		}, rawPage.Write)
+		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "read_raw_page",
+			Description: "Read the verbatim markdown of a page (no parsing, no JSON wrapping). Use this when you want to do light parsing yourself (e.g. extract a single frontmatter field) without the get_page block-tree machinery.",
+		}, rawPage.Read)
 	}
 
 	return srv
