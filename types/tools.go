@@ -252,3 +252,35 @@ type ListAttachmentsInput struct {
 	Folder    string `json:"folder" jsonschema:"Folder path relative to vault root. Required (no default global scan)."`
 	Recursive bool   `json:"recursive,omitempty" jsonschema:"Walk sub-folders. Default: false."`
 }
+
+// --- Vault-obsidian compat aliases inputs (Obsidian-only) ---
+//
+// Naming alignes sur le MCP vault-obsidian v1.1.0 (TS, projet frere) que
+// graphthulhu-vault remplace cote Hermes (bd-s5c Phase 6). La plupart sont
+// des wrappers ou des re-registrations des handlers existants. Voir
+// tools/aliases.go pour les implementations.
+
+type GetOutgoingLinksInput struct {
+	Name string `json:"name" jsonschema:"Page name to get outgoing links for."`
+}
+
+type GetBacklinksInput struct {
+	Name  string `json:"name" jsonschema:"Page name to get backlinks for."`
+	Limit int    `json:"limit,omitempty" jsonschema:"Max backlinks to return. Default: 50."`
+}
+
+type GetNeighborsInput struct {
+	Name      string `json:"name" jsonschema:"Page name to compute the neighborhood of."`
+	Depth     int    `json:"depth,omitempty" jsonschema:"BFS depth from the source. Default: 1, max enforced to 3."`
+	Direction string `json:"direction,omitempty" jsonschema:"Edge direction: forward, backward or both. Default: both."`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max neighbors to return. Default: 50, hard cap 100."`
+}
+
+type ReadNoteMetadataInput struct {
+	Name string `json:"name" jsonschema:"Page name to read frontmatter/metadata from."`
+}
+
+type CreateNoteInput struct {
+	Name    string `json:"name" jsonschema:"Page name (without .md). Parent directories auto-created."`
+	Content string `json:"content" jsonschema:"Full markdown content to write (frontmatter + body). Verbatim, atomic upsert."`
+}

@@ -285,6 +285,50 @@ func newServer(b backend.Backend, readOnly bool) *mcp.Server {
 		}, nil, nil
 	})
 
+	// --- Vault-obsidian compat aliases (bd-s5c Phase 6) ---
+	//
+	// Couche de compatibilite pour la migration Phase 6 des skills Hermes
+	// depuis le MCP vault-obsidian v1.1.0 (TS, projet frere) vers
+	// graphthulhu-vault. Les renames triviaux re-utilisent les handlers
+	// existants ; les wrappers et les nouvelles implementations vivent
+	// dans tools/aliases.go.
+	compat := tools.NewVaultObsidianCompat(b, nav, nil)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_note",
+		Description: "Alias of get_page (vault-obsidian v1.1.0 compat). Get a page with its full block tree, properties, tags, and parsed links. See get_page for full options.",
+	}, nav.GetPage)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "list_notes",
+		Description: "Alias of list_pages (vault-obsidian v1.1.0 compat). List pages with filtering by namespace, property, or tag.",
+	}, nav.ListPages)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "search_by_tag",
+		Description: "Alias of find_by_tag (vault-obsidian v1.1.0 compat). Find all blocks and pages with a specific tag.",
+	}, search.FindByTag)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_outgoing_links",
+		Description: "Get only the outgoing links (forward) of a page — what this page references. Wrapper around get_links with direction=forward.",
+	}, compat.GetOutgoingLinks)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_backlinks",
+		Description: "Get only the backlinks of a page — which pages link to this one. Answers 'who is referencing X'. Wrapper around get_links with direction=backward.",
+	}, compat.GetBacklinks)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_neighbors",
+		Description: "Compute the neighborhood of a page via BFS on the link graph. Returns nodes (with distance) and edges. depth defaults to 1 (max 3), direction in {forward, backward, both} (default both), limit defaults to 50 (hard cap 100). Answers 'what is connected to X'.",
+	}, compat.GetNeighbors)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "read_note_metadata",
+		Description: "Read only the frontmatter / properties / tags of a page, without the block tree. Lightweight reconciliation pattern: verify a frontmatter field was written without paying the cost of get_page.",
+	}, compat.ReadNoteMetadata)
+
 	// --- Vault management tools (Obsidian-specific) ---
 	if vaultClient, ok := b.(*vault.Client); ok && !readOnly {
 		srv.AddTool(&mcp.Tool{
@@ -324,6 +368,13 @@ func newServer(b backend.Backend, readOnly bool) *mcp.Server {
 			Name:        "append_to_section",
 			Description: "Append content as a new block under a specific heading on an existing page, with optional idempotency. The heading must already exist (it is never created). With skipIfPresent=true, the call is a no-op when the trimmed content already appears as a paragraph block in the section — useful when the same logical entry may be written multiple times in one session.",
 		}, appendSection.Run)
+
+		// --- vault-obsidian compat: create_note (Obsidian-specific write) ---
+		compatWrite := tools.NewVaultObsidianCompat(b, nav, vaultClient)
+		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "create_note",
+			Description: "Create or replace a markdown note with raw content (frontmatter + body). Wrapper around write_raw_page for callers using the vault-obsidian v1.1.0 naming convention. Atomic upsert; parent directories auto-created.",
+		}, compatWrite.CreateNote)
 
 		// --- raw page primitives (Obsidian-specific) ---
 		rawPage := tools.NewRawPage(vaultClient)
