@@ -77,6 +77,7 @@ func runServe(args []string) {
 	}
 
 	var b backend.Backend
+	var vaultRef *vault.Client // for HTTP /reload endpoint (obsidian backend only)
 	switch bt {
 	case "obsidian":
 		vp := *vaultPath
@@ -89,6 +90,7 @@ func runServe(args []string) {
 		}
 		vc := vault.New(vp, vault.WithDailyFolder(*dailyFolder), vault.WithIncludeHidden(*includeHidden))
 		defer vc.Close()
+		vaultRef = vc
 
 		lb := backend.NewLazyBackend(vc)
 		go func() {
@@ -121,11 +123,31 @@ func runServe(args []string) {
 
 	if *httpAddr != "" {
 		// Streamable HTTP transport — serves multiple clients.
-		handler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
+		mcpHandler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 			return srv
 		}, nil)
+
+		// Wrap with HTTP mux to expose a simple /reload endpoint alongside
+		// the MCP handler. Workaround for fsnotify limitations on macOS+iCloud
+		// where some filesystem events are not captured (cf. README + bd-u2l
+		// in projet-agents-hermes-sur-second-cerveau). Clients can issue
+		// `curl http://127.0.0.1:7878/reload` to force a full re-index without
+		// going through the MCP protocol.
+		mux := http.NewServeMux()
+		if vaultRef != nil {
+			mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
+				if err := vaultRef.Reload(); err != nil {
+					http.Error(w, fmt.Sprintf("reload failed: %v", err), http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, "vault reloaded")
+			})
+		}
+		mux.Handle("/", mcpHandler)
+
 		fmt.Fprintf(os.Stderr, "graphthulhu: listening on %s\n", *httpAddr)
-		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
+		if err := http.ListenAndServe(*httpAddr, mux); err != nil {
 			fmt.Fprintf(os.Stderr, "graphthulhu: %v\n", err)
 			os.Exit(1)
 		}
