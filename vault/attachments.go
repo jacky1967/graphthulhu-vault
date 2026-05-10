@@ -60,6 +60,65 @@ func (c *Client) UploadAttachment(relPath string, data []byte) (*AttachmentResul
 	}, nil
 }
 
+// CopyAttachment copies a binary file from srcRelPath to dstRelPath (both relative
+// to vault root). Parent directories of dst are auto-created. Atomic via temp+rename.
+// Refuses .md paths on either side (use CreatePage/DeletePage for markdown).
+// Returns AttachmentResult for the destination.
+func (c *Client) CopyAttachment(srcRelPath, dstRelPath string) (*AttachmentResult, error) {
+	if strings.HasSuffix(strings.ToLower(srcRelPath), ".md") {
+		return nil, ErrAttachmentIsMarkdown
+	}
+	if strings.HasSuffix(strings.ToLower(dstRelPath), ".md") {
+		return nil, ErrAttachmentIsMarkdown
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	srcAbs, err := c.safePath(srcRelPath)
+	if err != nil {
+		return nil, err
+	}
+	dstAbs, err := c.safePath(dstRelPath)
+	if err != nil {
+		return nil, err
+	}
+
+	srcInfo, err := os.Stat(srcAbs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("source attachment not found: %s", srcRelPath)
+		}
+		return nil, fmt.Errorf("stat source: %w", err)
+	}
+	if srcInfo.IsDir() {
+		return nil, fmt.Errorf("source is a directory, not a file: %s", srcRelPath)
+	}
+
+	data, err := os.ReadFile(srcAbs)
+	if err != nil {
+		return nil, fmt.Errorf("read source: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dstAbs), 0o755); err != nil {
+		return nil, fmt.Errorf("create destination directory: %w", err)
+	}
+
+	if err := atomicWriteBytes(dstAbs, data); err != nil {
+		return nil, fmt.Errorf("write destination: %w", err)
+	}
+
+	dstInfo, err := os.Stat(dstAbs)
+	if err != nil {
+		return nil, fmt.Errorf("stat destination: %w", err)
+	}
+
+	return &AttachmentResult{
+		Path: filepath.ToSlash(dstRelPath),
+		Size: dstInfo.Size(),
+	}, nil
+}
+
 // DeleteAttachment removes a binary file from the vault.
 // Refuses .md paths (use DeletePage instead).
 func (c *Client) DeleteAttachment(relPath string) error {

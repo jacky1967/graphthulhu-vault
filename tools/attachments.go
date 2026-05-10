@@ -37,6 +37,24 @@ func (a *Attachments) Upload(ctx context.Context, req *mcp.CallToolRequest, inpu
 	return res, nil, err
 }
 
+// Copy duplicates a binary attachment within the vault. Server-side atomic copy
+// (no base64 round-trip via MCP). Use case: dispatching from Inbox to PARA target
+// without losing the source until downstream guard-rails validate the move.
+func (a *Attachments) Copy(ctx context.Context, req *mcp.CallToolRequest, input types.CopyAttachmentInput) (*mcp.CallToolResult, any, error) {
+	if input.SrcPath == "" {
+		return errorResult("srcPath is required"), nil, nil
+	}
+	if input.DstPath == "" {
+		return errorResult("dstPath is required"), nil, nil
+	}
+	result, err := a.client.CopyAttachment(input.SrcPath, input.DstPath)
+	if err != nil {
+		return errorResult(fmt.Sprintf("copy_attachment failed: %v", err)), nil, nil
+	}
+	res, err := jsonTextResult(result)
+	return res, nil, err
+}
+
 // Delete removes a binary attachment from the vault.
 func (a *Attachments) Delete(ctx context.Context, req *mcp.CallToolRequest, input types.DeleteAttachmentInput) (*mcp.CallToolResult, any, error) {
 	if input.Path == "" {

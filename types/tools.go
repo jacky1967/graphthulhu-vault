@@ -248,6 +248,11 @@ type DeleteAttachmentInput struct {
 	Path string `json:"path" jsonschema:"Path relative to vault root. Cannot end in .md (use delete_page)."`
 }
 
+type CopyAttachmentInput struct {
+	SrcPath string `json:"srcPath" jsonschema:"Source path relative to vault root, e.g. '00_Inbox/email/Attachements/img.png'. Cannot end in .md (use get_page+create_page for markdown)."`
+	DstPath string `json:"dstPath" jsonschema:"Destination path relative to vault root, e.g. '3_Ressources/AI/Attachments/img.png'. Parent directories are auto-created. Cannot end in .md."`
+}
+
 type ListAttachmentsInput struct {
 	Folder    string `json:"folder" jsonschema:"Folder path relative to vault root. Required (no default global scan)."`
 	Recursive bool   `json:"recursive,omitempty" jsonschema:"Walk sub-folders. Default: false."`

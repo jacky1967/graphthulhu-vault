@@ -362,6 +362,10 @@ func newServer(b backend.Backend, vc *vault.Client, readOnly bool) *mcp.Server {
 			Description: "Delete a binary attachment by path (relative to vault root). Cannot delete .md files (use delete_page).",
 		}, attachments.Delete)
 		mcp.AddTool(srv, &mcp.Tool{
+			Name:        "copy_attachment",
+			Description: "Copy a binary attachment from srcPath to dstPath within the vault (server-side atomic copy, no MCP base64 round-trip). Parent directories of dst are auto-created. Both paths must be relative to vault root and cannot end in .md. Use case: dispatching from 00_Inbox to PARA target without losing the source until downstream guard-rails validate the move (then call delete_attachment on src).",
+		}, attachments.Copy)
+		mcp.AddTool(srv, &mcp.Tool{
 			Name:        "list_attachments",
 			Description: "List non-.md files (binaries, attachments) in a folder relative to vault root. Set recursive=true to walk sub-folders. Returns entries with path, size, and modification time.",
 		}, attachments.List)
