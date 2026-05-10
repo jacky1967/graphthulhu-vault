@@ -14,7 +14,11 @@ import (
 // newServer creates and configures the MCP server with all tools registered.
 // If readOnly is true, write tools are not registered.
 // Tools requiring DataScript are only registered if the backend supports it.
-func newServer(b backend.Backend, readOnly bool) *mcp.Server {
+//
+// vc is the underlying *vault.Client when backend == "obsidian", nil otherwise.
+// Passed explicitly because b may be a *LazyBackend wrapping vc, in which case
+// b.(*vault.Client) cast would fail and write tools would silently be skipped.
+func newServer(b backend.Backend, vc *vault.Client, readOnly bool) *mcp.Server {
 	srv := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "graphthulhu",
@@ -330,7 +334,7 @@ func newServer(b backend.Backend, readOnly bool) *mcp.Server {
 	}, compat.ReadNoteMetadata)
 
 	// --- Vault management tools (Obsidian-specific) ---
-	if vaultClient, ok := b.(*vault.Client); ok && !readOnly {
+	if vaultClient := vc; vaultClient != nil && !readOnly {
 		srv.AddTool(&mcp.Tool{
 			Name:        "reload",
 			Description: "Force a full vault re-index. Clears all cached pages and blocks, then re-reads all .md files. Use when external changes need to be refreshed.",

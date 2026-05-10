@@ -119,7 +119,7 @@ func runServe(args []string) {
 		os.Exit(1)
 	}
 
-	srv := newServer(b, *readOnly)
+	srv := newServer(b, vaultRef, *readOnly)
 
 	if *httpAddr != "" {
 		// Streamable HTTP transport — serves multiple clients.
