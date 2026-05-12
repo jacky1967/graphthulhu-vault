@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1247,6 +1248,43 @@ func (c *Client) FindBlocksByTag(_ context.Context, tag string, includeChildren 
 	}
 
 	return results, nil
+}
+
+// ListAllTags returns a sorted slice of all unique tags found in the vault
+// (case-preserving, but deduplicated case-insensitively — first occurrence
+// wins for display casing). Implements backend.TagLister.
+func (c *Client) ListAllTags(_ context.Context) ([]string, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	seen := make(map[string]string) // key=lower, val=first occurrence casing
+	for _, page := range c.pages {
+		collectTagsRec(page.blocks, seen)
+	}
+
+	tags := make([]string, 0, len(seen))
+	for _, original := range seen {
+		tags = append(tags, original)
+	}
+	sort.Strings(tags)
+	return tags, nil
+}
+
+// collectTagsRec walks a block tree and adds every parsed tag to seen,
+// keying by lower-case to deduplicate while keeping the first casing.
+func collectTagsRec(blocks []types.BlockEntity, seen map[string]string) {
+	for _, b := range blocks {
+		parsed := parser.Parse(b.Content)
+		for _, t := range parsed.Tags {
+			key := strings.ToLower(t)
+			if _, exists := seen[key]; !exists {
+				seen[key] = t
+			}
+		}
+		if len(b.Children) > 0 {
+			collectTagsRec(b.Children, seen)
+		}
+	}
 }
 
 // findTagInBlocks recursively searches blocks for a tag.

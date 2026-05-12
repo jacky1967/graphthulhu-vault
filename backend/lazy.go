@@ -21,6 +21,7 @@ type IndexableBackend interface {
 	Backend
 	FullTextSearcher
 	TagSearcher
+	TagLister
 	PropertySearcher
 	JournalSearcher
 }
@@ -201,6 +202,13 @@ func (lb *LazyBackend) FindBlocksByTag(ctx context.Context, tag string, includeC
 		return nil, err
 	}
 	return lb.inner.FindBlocksByTag(ctx, tag, includeChildren)
+}
+
+func (lb *LazyBackend) ListAllTags(ctx context.Context) ([]string, error) {
+	if err := lb.wait(ctx); err != nil {
+		return nil, err
+	}
+	return lb.inner.ListAllTags(ctx)
 }
 
 func (lb *LazyBackend) FindByProperty(ctx context.Context, key, value, operator string) ([]PropertyResult, error) {

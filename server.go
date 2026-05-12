@@ -92,6 +92,11 @@ func newServer(b backend.Backend, vc *vault.Client, readOnly bool) *mcp.Server {
 		Description: "Find all blocks and pages with a specific tag, including child tags in the tag hierarchy. Returns content grouped by page.",
 	}, search.FindByTag)
 
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "list_tags",
+		Description: "List the full unique tag vocabulary of the graph, sorted alphabetically. Use this BEFORE find_by_tag/search_by_tag when you don't yet know which tags exist — it lets you discover the actual taxonomy of the vault (themes, projects, status markers, etc.) instead of guessing. Returns {count, tags: [...]}. Lightweight, no parameters.",
+	}, search.ListTags)
+
 	// query_datalog is inherently Logseq-specific.
 	if hasDataScript {
 		mcp.AddTool(srv, &mcp.Tool{

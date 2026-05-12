@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/skridlevsky/graphthulhu/types"
@@ -256,6 +257,30 @@ func (c *Client) DSLQuery(ctx context.Context, dsl string) (json.RawMessage, err
 // GetAllTags returns all tags in the graph.
 func (c *Client) GetAllTags(ctx context.Context) ([]types.PageEntity, error) {
 	return callTyped[[]types.PageEntity](c, ctx, "logseq.Editor.getAllTags")
+}
+
+// ListAllTags returns a sorted slice of unique tag names (just the Name field
+// from each PageEntity). Implements backend.TagLister.
+func (c *Client) ListAllTags(ctx context.Context) ([]string, error) {
+	entities, err := c.GetAllTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool)
+	tags := make([]string, 0, len(entities))
+	for _, e := range entities {
+		name := e.Name
+		if name == "" {
+			continue
+		}
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		tags = append(tags, name)
+	}
+	sort.Strings(tags)
+	return tags, nil
 }
 
 // --- Property Operations ---

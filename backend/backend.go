@@ -49,6 +49,13 @@ type TagSearcher interface {
 	FindBlocksByTag(ctx context.Context, tag string, includeChildren bool) ([]TagResult, error)
 }
 
+// TagLister is implemented by backends that can enumerate all unique tags in
+// the graph. Used by the list_tags tool to let agents discover the tag
+// vocabulary before calling find_by_tag / search_by_tag.
+type TagLister interface {
+	ListAllTags(ctx context.Context) ([]string, error)
+}
+
 // PropertySearcher is implemented by backends that support property search without DataScript.
 type PropertySearcher interface {
 	FindByProperty(ctx context.Context, key, value, operator string) ([]PropertyResult, error)

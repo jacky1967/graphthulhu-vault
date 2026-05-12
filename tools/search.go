@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -190,6 +191,62 @@ func (s *Search) QueryDatalog(ctx context.Context, req *mcp.CallToolRequest, inp
 	}
 
 	res, err := jsonRawTextResult(raw)
+	return res, nil, err
+}
+
+// ListTags returns the full unique tag vocabulary of the graph, sorted.
+// Falls back to scanning all pages + parsing blocks if the backend does not
+// implement TagLister natively.
+func (s *Search) ListTags(ctx context.Context, req *mcp.CallToolRequest, input types.ListTagsInput) (*mcp.CallToolResult, any, error) {
+	if lister, ok := s.client.(backend.TagLister); ok {
+		tags, err := lister.ListAllTags(ctx)
+		if err != nil {
+			return errorResult(fmt.Sprintf("list_tags failed: %v", err)), nil, nil
+		}
+		res, err := jsonTextResult(map[string]any{
+			"count": len(tags),
+			"tags":  tags,
+		})
+		return res, nil, err
+	}
+
+	// Fallback for backends without TagLister : brute-force scan via all pages.
+	pages, err := s.client.GetAllPages(ctx)
+	if err != nil {
+		return errorResult(fmt.Sprintf("list_tags fallback failed: %v", err)), nil, nil
+	}
+	seen := make(map[string]string) // lower → first casing
+	for _, p := range pages {
+		blocks, err := s.client.GetPageBlocksTree(ctx, p.Name)
+		if err != nil {
+			continue
+		}
+		var walk func([]types.BlockEntity)
+		walk = func(bs []types.BlockEntity) {
+			for _, b := range bs {
+				parsed := parser.Parse(b.Content)
+				for _, t := range parsed.Tags {
+					key := strings.ToLower(t)
+					if _, exists := seen[key]; !exists {
+						seen[key] = t
+					}
+				}
+				if len(b.Children) > 0 {
+					walk(b.Children)
+				}
+			}
+		}
+		walk(blocks)
+	}
+	tags := make([]string, 0, len(seen))
+	for _, orig := range seen {
+		tags = append(tags, orig)
+	}
+	sort.Strings(tags)
+	res, err := jsonTextResult(map[string]any{
+		"count": len(tags),
+		"tags":  tags,
+	})
 	return res, nil, err
 }
 

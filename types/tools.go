@@ -63,6 +63,9 @@ type FindByTagInput struct {
 	IncludeChildren bool   `json:"includeChildren,omitempty" jsonschema:"Include child tags in hierarchy. Default: true"`
 }
 
+// ListTagsInput has no required params — returns the full unique tag vocabulary.
+type ListTagsInput struct{}
+
 // --- Analyze tool inputs ---
 
 // GraphOverviewInput has no required params — returns global stats.
