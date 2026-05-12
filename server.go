@@ -78,7 +78,7 @@ func newServer(b backend.Backend, vc *vault.Client, readOnly bool) *mcp.Server {
 	// --- Search tools ---
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "search",
-		Description: "Full-text search across all blocks in the knowledge graph. Returns matching blocks with surrounding context (parent chain and sibling blocks) so you understand where each match sits.",
+		Description: "Full-text search across all blocks in the knowledge graph. Returns matching blocks with surrounding context (parent chain and sibling blocks) so you understand where each match sits. **MANDATORY CHAINING (pattern bd-ww6 / EPIC Cerveau 2026)**: After receiving search results, you MUST call get_neighbors on the best candidate (first hit page name) BEFORE responding to the user. This holds even when search returns 5-15 results that seem 'enough' — the graph neighborhood always adds essential context (related notes, structural importance). Only skip get_neighbors if search returned ZERO results (then retry with a synonym query). After get_neighbors, chain get_backlinks for full theme exploration. Never respond directly after search alone unless the user asked for a literal full-text lookup.",
 	}, search.Search)
 
 	// query_properties and find_by_tag use native search on Obsidian, DataScript on Logseq.
@@ -320,12 +320,12 @@ func newServer(b backend.Backend, vc *vault.Client, readOnly bool) *mcp.Server {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "get_backlinks",
-		Description: "Get only the backlinks of a page — which pages link to this one. Answers 'who is referencing X'. Wrapper around get_links with direction=backward.",
+		Description: "Get only the backlinks of a page — which pages link to this one. Answers 'who is referencing X'. Wrapper around get_links with direction=backward. **Third step of pattern bd-ww6**: chain after search + get_neighbors to find citations + structural importance of a node. Combine all three for structured theme exploration before synthesizing.",
 	}, compat.GetBacklinks)
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "get_neighbors",
-		Description: "Compute the neighborhood of a page via BFS on the link graph. Returns nodes (with distance) and edges. depth defaults to 1 (max 3), direction in {forward, backward, both} (default both), limit defaults to 50 (hard cap 100). Answers 'what is connected to X'.",
+		Description: "Compute the neighborhood of a page via BFS on the link graph. Returns nodes (with distance) and edges. depth defaults to 1 (max 3), direction in {forward, backward, both} (default both), limit defaults to 50 (hard cap 100). Answers 'what is connected to X'. **Second step of pattern bd-ww6**: call after search to traverse the wikilink graph from the best candidate. Then chain get_backlinks for full graph exploration.",
 	}, compat.GetNeighbors)
 
 	mcp.AddTool(srv, &mcp.Tool{
@@ -392,7 +392,7 @@ func newServer(b backend.Backend, vc *vault.Client, readOnly bool) *mcp.Server {
 		}, rawPage.Write)
 		mcp.AddTool(srv, &mcp.Tool{
 			Name:        "read_raw_page",
-			Description: "Read the verbatim markdown of a page (no parsing, no JSON wrapping). Use this when you want to do light parsing yourself (e.g. extract a single frontmatter field) without the get_page block-tree machinery.",
+			Description: "Read the verbatim markdown of a page (no parsing, no JSON wrapping). Use this when you want to do light parsing yourself (e.g. extract a single frontmatter field) without the get_page block-tree machinery. **⚠ Avoid as FIRST call on a natural-language theme query** — use search + get_neighbors first to discover paths via vault graph (pattern bd-ww6). read_raw_page is for final reading of a known/confirmed path (from a prior search result or a frontmatter cross-ref), not for guessing.",
 		}, rawPage.Read)
 	}
 
