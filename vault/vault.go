@@ -1239,6 +1239,23 @@ func (c *Client) FindBlocksByTag(_ context.Context, tag string, includeChildren 
 
 		var matches []types.BlockEntity
 		findTagInBlocks(page.blocks, tagLower, &matches)
+
+		// bd-graphthulhu-fix 2026-05-13 : aussi check les tags du frontmatter YAML.
+		// Sans ce check, les notes avec `tags: [hermes, ...]` ou `tags:\n  - hermes`
+		// dans le frontmatter sont invisibles a search_by_tag (frontmatter parse
+		// mais ignore par l'index tags). Obsidian indexe les 2 formats, donc
+		// divergence observable utilisateur. Ajoute un block placeholder pour que
+		// la page apparaisse dans les resultats si frontmatter match.
+		for _, ft := range extractFrontmatterTags(page.entity.Properties) {
+			if strings.ToLower(ft) == tagLower {
+				matches = append(matches, types.BlockEntity{
+					UUID:    "frontmatter-tag",
+					Content: "(frontmatter) tags: " + strings.Join(extractFrontmatterTags(page.entity.Properties), ", "),
+				})
+				break
+			}
+		}
+
 		if len(matches) > 0 {
 			results = append(results, backend.TagResult{
 				Page:   page.entity.Name,
@@ -1248,6 +1265,44 @@ func (c *Client) FindBlocksByTag(_ context.Context, tag string, includeChildren 
 	}
 
 	return results, nil
+}
+
+// extractFrontmatterTags returns the list of tags from a page's YAML frontmatter.
+// Supports the 3 YAML formats Obsidian accepts:
+//   - inline list:      tags: [a, b, c]
+//   - multi-line list:  tags:\n  - a\n  - b
+//   - single string:    tags: hermes  (rare)
+//
+// Returns nil if no `tags` key or empty.
+// bd-graphthulhu-fix 2026-05-13.
+func extractFrontmatterTags(props map[string]any) []string {
+	if props == nil {
+		return nil
+	}
+	raw, ok := props["tags"]
+	if !ok {
+		return nil
+	}
+	var tags []string
+	switch v := raw.(type) {
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok && s != "" {
+				tags = append(tags, s)
+			}
+		}
+	case []string:
+		for _, s := range v {
+			if s != "" {
+				tags = append(tags, s)
+			}
+		}
+	case string:
+		if v != "" {
+			tags = append(tags, v)
+		}
+	}
+	return tags
 }
 
 // ListAllTags returns a sorted slice of all unique tags found in the vault
@@ -1260,6 +1315,16 @@ func (c *Client) ListAllTags(_ context.Context) ([]string, error) {
 	seen := make(map[string]string) // key=lower, val=first occurrence casing
 	for _, page := range c.pages {
 		collectTagsRec(page.blocks, seen)
+
+		// bd-graphthulhu-fix 2026-05-13 : aussi inclure les tags du frontmatter
+		// YAML (sinon les tags definis uniquement dans `tags: [hermes, ...]` du
+		// frontmatter sont absents du vocabulaire renvoye par list_tags).
+		for _, ft := range extractFrontmatterTags(page.entity.Properties) {
+			key := strings.ToLower(ft)
+			if _, exists := seen[key]; !exists {
+				seen[key] = ft
+			}
+		}
 	}
 
 	tags := make([]string, 0, len(seen))

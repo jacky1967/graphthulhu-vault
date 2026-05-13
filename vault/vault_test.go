@@ -541,6 +541,40 @@ func TestFindBlocksByTag(t *testing.T) {
 	}
 }
 
+// bd-graphthulhu-fix 2026-05-13 : verifie que les tags du frontmatter YAML sont
+// pris en compte par search_by_tag (regression contre le bug ou seuls les #tag
+// inline du body etaient indexes, malgre la presence de `tags: [...]` en YAML).
+func TestExtractFrontmatterTags(t *testing.T) {
+	tests := []struct {
+		name string
+		props map[string]any
+		want  []string
+	}{
+		{"nil props", nil, nil},
+		{"empty map", map[string]any{}, nil},
+		{"no tags key", map[string]any{"type": "ressource"}, nil},
+		{"inline list (Obsidian default)", map[string]any{"tags": []any{"hermes", "roadmap"}}, []string{"hermes", "roadmap"}},
+		{"multi-line list (typed)", map[string]any{"tags": []string{"hermes", "roadmap"}}, []string{"hermes", "roadmap"}},
+		{"single string", map[string]any{"tags": "hermes"}, []string{"hermes"}},
+		{"empty values filtered", map[string]any{"tags": []any{"hermes", "", "roadmap"}}, []string{"hermes", "roadmap"}},
+		{"non-string items skipped", map[string]any{"tags": []any{"hermes", 42, "roadmap"}}, []string{"hermes", "roadmap"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractFrontmatterTags(tt.props)
+			if len(got) != len(tt.want) {
+				t.Errorf("count = %d, want %d (got=%v)", len(got), len(tt.want), got)
+				return
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("got[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestFindByProperty(t *testing.T) {
 	c := testVault(t)
 	ctx := context.Background()
